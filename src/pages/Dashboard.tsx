@@ -1,7 +1,13 @@
+// src/pages/Dashboard.tsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAccounts } from "../lib/accounts";
 import type { Account } from "../lib/accounts";
+import {
+  getUserSettings,
+  updateSecondaryCurrency,
+  getFxRate,
+} from "../lib/settings";
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   Checking: "Checking",
@@ -10,17 +16,74 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   CreditCard: "Credit Card",
 };
 
+const CURRENCY_OPTIONS = [
+  "EUR",
+  "GBP",
+  "INR",
+  "CAD",
+  "AUD",
+  "JPY",
+  "CHF",
+  "SGD",
+];
+
 export default function Dashboard() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [secondaryCurrency, setSecondaryCurrency] = useState<string | null>(
+    null,
+  );
+  const [fxRate, setFxRate] = useState<number | null>(null);
+  const [fxLoading, setFxLoading] = useState(false);
+  const [currencySaving, setCurrencySaving] = useState(false);
 
   useEffect(() => {
     getAccounts()
       .then(setAccounts)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+
+    getUserSettings()
+      .then((s) => setSecondaryCurrency(s.preferredSecondaryCurrency))
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!secondaryCurrency) {
+      setFxRate(null);
+      return;
+    }
+    let cancelled = false;
+    setFxLoading(true);
+    getFxRate("USD", secondaryCurrency)
+      .then((rate) => {
+        if (!cancelled) setFxRate(rate);
+      })
+      .catch(() => {
+        if (!cancelled) setFxRate(null);
+      })
+      .finally(() => {
+        if (!cancelled) setFxLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [secondaryCurrency]);
+
+  async function handleCurrencyChange(value: string) {
+    const currency = value || null;
+    setCurrencySaving(true);
+    try {
+      await updateSecondaryCurrency(currency);
+      setSecondaryCurrency(currency);
+    } catch {
+      // silently ignore — selector will just reflect the last successful value
+    } finally {
+      setCurrencySaving(false);
+    }
+  }
 
   if (loading) return <p style={{ color: "#5B6472" }}>Loading...</p>;
   if (error) return <p style={{ color: "#A83B32" }}>{error}</p>;
@@ -37,25 +100,79 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1
-          className="font-display text-3xl font-semibold"
-          style={{ color: "#16233D" }}
-        >
-          Dashboard
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "#5B6472" }}>
-          Overview of your accounts and net worth
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1
+            className="font-display text-3xl font-semibold"
+            style={{ color: "#16233D" }}
+          >
+            Dashboard
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "#5B6472" }}>
+            Overview of your accounts and net worth
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs" style={{ color: "#5B6472" }}>
+            Also show in
+          </label>
+          <select
+            value={secondaryCurrency ?? ""}
+            onChange={(e) => handleCurrencyChange(e.target.value)}
+            disabled={currencySaving}
+            className="border rounded px-2 py-1 text-sm"
+            style={{ borderColor: "#E3E0D6", color: "#16233D" }}
+          >
+            <option value="">None</option>
+            {CURRENCY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          {secondaryCurrency && (
+            <span
+              className="font-mono-num text-xs"
+              style={{ color: "#5B6472" }}
+            >
+              {fxLoading ? (
+                "..."
+              ) : fxRate != null ? (
+                <>
+                  1 USD = {fxRate.toFixed(4)} {secondaryCurrency}
+                </>
+              ) : (
+                "rate unavailable"
+              )}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <SummaryCard label="Net Worth" value={netWorth} highlight />
-        <SummaryCard label="Total Assets" value={totalAssets} />
+        <SummaryCard
+          label="Net Worth"
+          value={netWorth}
+          highlight
+          secondaryValue={fxRate != null ? netWorth * fxRate : null}
+          secondaryCurrency={secondaryCurrency}
+          secondaryLoading={fxLoading}
+        />
+        <SummaryCard
+          label="Total Assets"
+          value={totalAssets}
+          secondaryValue={fxRate != null ? totalAssets * fxRate : null}
+          secondaryCurrency={secondaryCurrency}
+          secondaryLoading={fxLoading}
+        />
         <SummaryCard
           label="Total Owed (Credit Cards)"
           value={totalLiabilities}
           negative
+          secondaryValue={fxRate != null ? totalLiabilities * fxRate : null}
+          secondaryCurrency={secondaryCurrency}
+          secondaryLoading={fxLoading}
         />
       </div>
 
@@ -141,11 +258,17 @@ function SummaryCard({
   value,
   highlight = false,
   negative = false,
+  secondaryValue = null,
+  secondaryCurrency = null,
+  secondaryLoading = false,
 }: {
   label: string;
   value: number;
   highlight?: boolean;
   negative?: boolean;
+  secondaryValue?: number | null;
+  secondaryCurrency?: string | null;
+  secondaryLoading?: boolean;
 }) {
   return (
     <div
@@ -172,6 +295,18 @@ function SummaryCard({
           currency: "USD",
         })}
       </p>
+      {secondaryCurrency && (
+        <p
+          className="font-mono-num text-sm mt-1"
+          style={{ color: highlight ? "#9CA9C0" : "#5B6472" }}
+        >
+          {secondaryLoading
+            ? "converting..."
+            : secondaryValue != null
+              ? `≈ ${secondaryValue.toLocaleString(undefined, { style: "currency", currency: secondaryCurrency })}`
+              : "rate unavailable"}
+        </p>
+      )}
     </div>
   );
 }
