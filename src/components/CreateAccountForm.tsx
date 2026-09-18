@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createAccount } from "../lib/accounts";
+import InstitutionSelect from "./InstitutionSelect";
 
 const ACCOUNT_TYPES = ["Checking", "Savings", "Investment", "CreditCard"];
 
@@ -15,13 +16,14 @@ export default function CreateAccountForm({
   const [currency, setCurrency] = useState("USD");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      await createAccount({ name, accountType, institutionId: null, currency });
+      await createAccount({ name, accountType, institutionId, currency });
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create account");
@@ -64,6 +66,7 @@ export default function CreateAccountForm({
           </option>
         ))}
       </select>
+      <InstitutionSelect value={institutionId} onChange={setInstitutionId} />
       <input
         placeholder="Currency"
         value={currency}

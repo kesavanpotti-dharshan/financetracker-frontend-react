@@ -4,6 +4,7 @@ export interface Account {
   id: string;
   name: string;
   accountType: string;
+  institutionId: string | null; // add this
   institutionName: string | null;
   currency: string;
   currentBalance: number;
@@ -44,7 +45,7 @@ export async function createAccount(data: {
 
 export async function updateAccount(
   id: string,
-  data: { name: string; currency: string },
+  data: { name: string; currency: string; institutionId: string | null },
 ): Promise<Account> {
   const res = await apiFetch(`/api/accounts/${id}`, {
     method: "PUT",
