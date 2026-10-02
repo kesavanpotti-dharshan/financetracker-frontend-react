@@ -178,6 +178,26 @@ export default function Dashboard() {
 
   const convert = (v: number) => (fxRate != null ? v * fxRate : null);
 
+  const ringColor = (type: string) =>
+    TYPE_COLORS[type] === "#16233D" ? "#3B4B6B" : TYPE_COLORS[type];
+
+  let cumulativePct = 0;
+  const ringGradientStops = allocationByType.map((a, i) => {
+    const start = cumulativePct;
+    const end =
+      i === allocationByType.length - 1 ? 100 : cumulativePct + a.pct;
+    cumulativePct = end;
+    return `${ringColor(a.type)} ${start}% ${end}%`;
+  });
+  const ringBackground =
+    allocationByType.length > 0
+      ? `conic-gradient(${ringGradientStops.join(", ")})`
+      : "#3B4B6B";
+  const topAllocation =
+    allocationByType.length > 0
+      ? [...allocationByType].sort((a, b) => b.pct - a.pct)[0]
+      : null;
+
   return (
     <div className="space-y-8">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -231,66 +251,162 @@ export default function Dashboard() {
       </div>
 
       {/* Hero net worth card */}
-      <div className="rounded-xl p-6" style={{ backgroundColor: "#16233D" }}>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <div
-              className="rounded-full p-3"
-              style={{ backgroundColor: "#1F6F5C" }}
-            >
-              <Wallet size={22} color="#FFFFFF" />
-            </div>
-            <div>
+      <div>
+        <div
+          className="rounded-xl p-6 flex items-center justify-between flex-wrap gap-8"
+          style={{ backgroundColor: "#16233D" }}
+        >
+          <div className="min-w-[220px]">
+            <div className="flex items-center gap-3 mb-2">
+              <div
+                className="rounded-full p-2"
+                style={{ backgroundColor: "#1F6F5C" }}
+              >
+                <Wallet size={18} color="#FFFFFF" />
+              </div>
               <p
                 className="text-xs uppercase tracking-wide"
                 style={{ color: "#9CA9C0" }}
               >
                 Net Worth
               </p>
-              <p className="font-mono-num text-4xl font-semibold text-white">
-                {netWorth.toLocaleString(undefined, {
-                  style: "currency",
-                  currency: "USD",
-                })}
+            </div>
+            <p className="font-mono-num text-4xl font-semibold text-white">
+              {netWorth.toLocaleString(undefined, {
+                style: "currency",
+                currency: "USD",
+              })}
+            </p>
+            {secondaryCurrency && (
+              <p
+                className="font-mono-num text-sm mt-0.5"
+                style={{ color: "#9CA9C0" }}
+              >
+                {fxLoading
+                  ? "converting..."
+                  : convert(netWorth) != null
+                    ? `≈ ${convert(netWorth)!.toLocaleString(undefined, { style: "currency", currency: secondaryCurrency })}`
+                    : "rate unavailable"}
               </p>
-              {secondaryCurrency && (
+            )}
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div
+              className="relative shrink-0"
+              style={{
+                width: 140,
+                height: 140,
+                borderRadius: "9999px",
+                background: ringBackground,
+              }}
+            >
+              <div
+                className="absolute flex flex-col items-center justify-center"
+                style={{
+                  top: 20,
+                  left: 20,
+                  width: 100,
+                  height: 100,
+                  borderRadius: "9999px",
+                  backgroundColor: "#16233D",
+                }}
+              >
                 <p
-                  className="font-mono-num text-sm mt-0.5"
+                  className="text-[9px] uppercase tracking-wide"
                   style={{ color: "#9CA9C0" }}
                 >
-                  {fxLoading
-                    ? "converting..."
-                    : convert(netWorth) != null
-                      ? `≈ ${convert(netWorth)!.toLocaleString(undefined, { style: "currency", currency: secondaryCurrency })}`
-                      : "rate unavailable"}
+                  Top Type
                 </p>
+                <p className="text-[13px] text-white mt-0.5">
+                  {topAllocation
+                    ? ACCOUNT_TYPE_LABELS[topAllocation.type]
+                    : "—"}
+                </p>
+                <p className="font-mono-num text-[15px] font-semibold text-white">
+                  {topAllocation ? `${topAllocation.pct.toFixed(0)}%` : "—"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              {allocationByType.length === 0 ? (
+                <span className="text-xs" style={{ color: "#9CA9C0" }}>
+                  No allocation yet
+                </span>
+              ) : (
+                allocationByType.map((a) => (
+                  <span
+                    key={a.type}
+                    className="text-xs flex items-center gap-2"
+                    style={{ color: "#9CA9C0" }}
+                  >
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: ringColor(a.type) }}
+                    />
+                    {ACCOUNT_TYPE_LABELS[a.type]} · {a.pct.toFixed(0)}%
+                  </span>
+                ))
               )}
             </div>
           </div>
+        </div>
 
-          <div className="flex gap-6">
+        <div
+          className="flex gap-4 px-1 relative"
+          style={{ marginTop: "-24px", zIndex: 2 }}
+        >
+          <div
+            className="flex-1 rounded-xl border p-3.5 flex items-center gap-3 shadow-sm"
+            style={{ backgroundColor: "#FFFFFF", borderColor: "#E3E0D6" }}
+          >
+            <div
+              className="rounded-full p-2"
+              style={{ backgroundColor: "#1F6F5C1A", color: "#1F6F5C" }}
+            >
+              <TrendingUp size={15} />
+            </div>
             <div>
               <p
-                className="text-xs uppercase tracking-wide"
-                style={{ color: "#9CA9C0" }}
+                className="text-[10px] uppercase tracking-wide"
+                style={{ color: "#5B6472" }}
               >
                 Assets
               </p>
-              <p className="font-mono-num text-lg text-white">
+              <p
+                className="font-mono-num text-base font-semibold"
+                style={{ color: "#16233D" }}
+              >
                 {totalAssets.toLocaleString(undefined, {
                   style: "currency",
                   currency: "USD",
                 })}
               </p>
             </div>
+          </div>
+
+          <div
+            className="flex-1 rounded-xl border p-3.5 flex items-center gap-3 shadow-sm"
+            style={{ backgroundColor: "#FFFFFF", borderColor: "#E3E0D6" }}
+          >
+            <div
+              className="rounded-full p-2"
+              style={{ backgroundColor: "#A83B321A", color: "#A83B32" }}
+            >
+              <CreditCard size={15} />
+            </div>
             <div>
               <p
-                className="text-xs uppercase tracking-wide"
-                style={{ color: "#9CA9C0" }}
+                className="text-[10px] uppercase tracking-wide"
+                style={{ color: "#5B6472" }}
               >
                 Owed
               </p>
-              <p className="font-mono-num text-lg" style={{ color: "#F3A69C" }}>
+              <p
+                className="font-mono-num text-base font-semibold"
+                style={{ color: "#A83B32" }}
+              >
                 {totalLiabilities.toLocaleString(undefined, {
                   style: "currency",
                   currency: "USD",
@@ -299,45 +415,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
-        {allocationByType.length > 0 && (
-          <div className="mt-6">
-            <div className="h-2 rounded-full overflow-hidden flex">
-              {allocationByType.map((a) => (
-                <div
-                  key={a.type}
-                  style={{
-                    width: `${a.pct}%`,
-                    backgroundColor:
-                      TYPE_COLORS[a.type] === "#16233D"
-                        ? "#3B4B6B"
-                        : TYPE_COLORS[a.type],
-                  }}
-                />
-              ))}
-            </div>
-            <div className="flex gap-4 mt-2 flex-wrap">
-              {allocationByType.map((a) => (
-                <span
-                  key={a.type}
-                  className="text-xs flex items-center gap-1.5"
-                  style={{ color: "#9CA9C0" }}
-                >
-                  <span
-                    className="inline-block w-2 h-2 rounded-full"
-                    style={{
-                      backgroundColor:
-                        TYPE_COLORS[a.type] === "#16233D"
-                          ? "#3B4B6B"
-                          : TYPE_COLORS[a.type],
-                    }}
-                  />
-                  {ACCOUNT_TYPE_LABELS[a.type]} · {a.pct.toFixed(0)}%
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">

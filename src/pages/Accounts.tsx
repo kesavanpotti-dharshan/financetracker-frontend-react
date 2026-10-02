@@ -27,6 +27,9 @@ export default function Accounts() {
 
   if (loading) return <p className="text-gray-500">Loading...</p>;
 
+  const bankAccounts = accounts.filter((a) => a.accountType !== "CreditCard");
+  const creditCards = accounts.filter((a) => a.accountType === "CreditCard");
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -56,10 +59,42 @@ export default function Accounts() {
           No accounts yet — add one above.
         </p>
       ) : (
-        <div className="space-y-3">
-          {accounts.map((a) => (
-            <AccountCard key={a.id} account={a} onChanged={load} />
-          ))}
+        <div className="space-y-8">
+          <div className="space-y-3">
+            <h2
+              className="font-display text-lg font-medium"
+              style={{ color: "#16233D" }}
+            >
+              Bank Accounts
+            </h2>
+            {bankAccounts.length === 0 ? (
+              <p className="text-gray-500 text-sm">No bank accounts yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {bankAccounts.map((a) => (
+                  <AccountCard key={a.id} account={a} onChanged={load} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <h2
+              className="font-display text-lg font-medium"
+              style={{ color: "#16233D" }}
+            >
+              Credit Cards
+            </h2>
+            {creditCards.length === 0 ? (
+              <p className="text-gray-500 text-sm">No credit cards yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {creditCards.map((a) => (
+                  <AccountCard key={a.id} account={a} onChanged={load} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

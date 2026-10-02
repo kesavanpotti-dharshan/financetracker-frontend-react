@@ -37,6 +37,13 @@ export default function Layout() {
           >
             Accounts
           </Link>
+          <Link
+            to="/subscriptions"
+            className="text-sm hover:underline"
+            style={{ color: "#5B6472" }}
+          >
+            Subscriptions
+          </Link>
         </div>
         <div className="flex items-center gap-4">
           {user?.email && (
